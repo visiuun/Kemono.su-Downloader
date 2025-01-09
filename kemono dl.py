@@ -1,9 +1,26 @@
 import os
 import requests
+import aiohttp
+import asyncio
 import urllib.parse
 from pathlib import Path
 from tqdm import tqdm
 import concurrent.futures
+import importlib
+import sys
+import subprocess
+
+# List of required libraries
+required_libraries = ['requests', 'tqdm', 'concurrent.futures', 'aiohttp']
+
+# Function to check and install missing libraries
+def check_and_install_libraries(libraries):
+    for lib in libraries:
+        if importlib.util.find_spec(lib) is None:
+            print(f"{lib} not found. Installing...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
+
+check_and_install_libraries(required_libraries)
 
 # Mapping of platforms to their respective API endpoints
 platform_api_endpoints = {
@@ -26,9 +43,14 @@ media_file_extensions = {
     '.apng', '.gifv', '.m4v'  # Animated Image/Video formats
 }
 
-def fetch_artist_data(artist_url):
-    # Extract platform and user ID from the provided URL
+async def fetch_artist_data(artist_url):
     parsed_url = urllib.parse.urlparse(artist_url)
+    path_segments = parsed_url.path.split('/')
+    if len(path_segments) > 1 and path_segments[1] in platform_api_endpoints:
+        platform = path_segments[1]
+    else:
+        print("Invalid URL format or unsupported platform.")
+        return None
     platform = parsed_url.path.split('/')[1]
     user_id = parsed_url.path.split('/')[-1]
 
@@ -44,38 +66,39 @@ def fetch_artist_data(artist_url):
     print("Loading pages...")
 
     # First, calculate the total number of pages (for progress bar)
-    while True:
-        api_url = f"https://kemono.su/api/v1/{platform}/user/{user_id}?o={offset}"
-        headers = {'accept': 'application/json'}
-        
-        response = requests.get(api_url, headers=headers)
-        if response.status_code == 200:
-            page_data = response.json()
-            if not page_data:  # No more data
-                break
-            total_pages += 1
-            offset += 50  # Move to the next page
-        else:
-            print(f"Failed to fetch data from {platform.capitalize()} API. Status code: {response.status_code}")
-            break
+    async with aiohttp.ClientSession() as session:
+        while True:
+            api_url = f"https://kemono.su/api/v1/{platform}/user/{user_id}?o={offset}"
+            headers = {'accept': 'application/json'}
+            
+            async with session.get(api_url, headers=headers) as response:
+                if response.status == 200:
+                    page_data = await response.json()
+                    if not page_data:  # No more data
+                        break
+                    total_pages += 1
+                    offset += 50  # Move to the next page
+                else:
+                    print(f"Failed to fetch data from {platform.capitalize()} API. Status code: {response.status}")
+                    break
 
     # Create a progress bar for page loading
     with tqdm(total=total_pages, desc="Loading pages", ncols=100) as page_bar:
         offset = 0
-        while True:
-            api_url = f"https://kemono.su/api/v1/{platform}/user/{user_id}?o={offset}"
-            response = requests.get(api_url, headers=headers)
-            if response.status_code == 200:
-                page_data = response.json()
-                if not page_data:  # No more data
-                    break
-                artist_data.extend(page_data)
-                offset += 50  # Move to the next page
-                page_bar.update(1)
-            else:
-                print(f"Failed to fetch data from {platform.capitalize()} API. Status code: {response.status_code}")
-                break
-
+        async with aiohttp.ClientSession() as session:
+            while True:
+                api_url = f"https://kemono.su/api/v1/{platform}/user/{user_id}?o={offset}"
+                async with session.get(api_url, headers=headers) as response:
+                    if response.status == 200:
+                        page_data = await response.json()
+                        if not page_data:  # No more data
+                            break
+                        artist_data.extend(page_data)
+                        offset += 50  # Move to the next page
+                        page_bar.update(1)
+                    else:
+                        print(f"Failed to fetch data from {platform.capitalize()} API. Status code: {response.status}")
+                        break
     return artist_data
 
 def download_file(file_url, file_name, download_dir, progress_bar):
@@ -94,10 +117,10 @@ def download_file(file_url, file_name, download_dir, progress_bar):
                     if chunk:
                         f.write(chunk)
                         pbar.update(len(chunk))
+                progress_bar.update(1)
 
-    # Now update the total progress bar (this is what you're asking for)
-    progress_bar.update(1)  # This updates the single progress bar showing total progress
-    print(f"Downloaded: {file_name}")
+def is_media_file(file_name, download_all):
+    return download_all or any(file_name.lower().endswith(ext) for ext in media_file_extensions)
 
 def download_media_files(artist_data, download_dir, download_all):
     if not os.path.exists(download_dir):
@@ -110,22 +133,24 @@ def download_media_files(artist_data, download_dir, download_all):
             for attachment in post['attachments']:
                 file_name = attachment['name']
                 # Check if the file is a media file based on its extension
-                if download_all or any(file_name.lower().endswith(ext) for ext in media_file_extensions):
+                if is_media_file(file_name, download_all):
                     total_files += 1
 
     # Create a single total progress bar for all downloads (this is what you're asking for)
     with tqdm(total=total_files, desc="Downloading media", ncols=100) as progress_bar:
         # Create a ThreadPoolExecutor with 5 concurrent threads
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
             for post in artist_data:
                 if 'attachments' in post:
                     for attachment in post['attachments']:
                         file_name = attachment['name']
-                        file_url = f'https://kemono.su{attachment["path"]}'
-
+                        file_url = attachment['path']
+                        # Ensure the URL has a scheme
+                        if not urllib.parse.urlparse(file_url).scheme:
+                            file_url = f"https://kemono.su{file_url}"
                         # Skip thumbnails and zip files, unless downloading everything
-                        if download_all or (not file_name.endswith('.zip') and not '_thumb' in file_name and any(file_name.lower().endswith(ext) for ext in media_file_extensions)):
+                        if should_download_file(file_name, download_all):
                             futures.append(executor.submit(download_file, file_url, file_name, download_dir, progress_bar))
 
             # Wait for all futures (downloads) to complete
@@ -135,19 +160,35 @@ def download_media_files(artist_data, download_dir, download_all):
                 except Exception as e:
                     print(f"Exception occurred: {e}")
 
+def should_download_file(file_name, download_all):
+    if download_all:
+        return True
+    if file_name.endswith('.zip') or '_thumb' in file_name:
+        return False
+    return any(file_name.lower().endswith(ext) for ext in media_file_extensions)
+
 def main():
-    # Ask user for the artist page URL
     artist_url = input("Enter the artist page URL: ").strip()
 
     # Ask if the user wants to download everything or just media files
     download_option = input("Do you want to download (1) everything or (2) just media files? (Enter 1 or 2): ").strip()
 
+    # Validate download option input
+    while download_option not in ['1', '2']:
+        print("Invalid input. Please enter 1 or 2.")
+        download_option = input("Do you want to download (1) everything or (2) just media files? (Enter 1 or 2): ").strip()
+
     # Fetch artist data from respective platform API
-    artist_data = fetch_artist_data(artist_url)
+    artist_data = asyncio.run(fetch_artist_data(artist_url))
 
     if artist_data:
         # Prompt user to choose download directory
-        download_dir = input("Enter the directory where you want to download the files: ").strip()
+        while True:
+            download_dir = input("Enter the directory where you want to download the files: ").strip()
+            if os.path.isdir(download_dir) and os.access(download_dir, os.W_OK):
+                break
+            else:
+                print("Invalid directory or no write permission. Please enter a valid directory.")
 
         # Download media files concurrently
         download_media_files(artist_data, download_dir, download_option == '1')
