@@ -1,6 +1,5 @@
 ![image](https://kemono.su/static/kemono-logo.svg)
 
-```markdown
 # Bulk Media Downloader for Kemono.su
 
 Welcome to the Bulk Media Downloader for Kemono.su! This Python script simplifies the process of fetching and downloading media files from various content platforms supported by the Kemono.su API. It offers efficient concurrent downloads and robust support for multiple platforms.
