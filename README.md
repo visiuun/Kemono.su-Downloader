@@ -67,7 +67,7 @@ pip install requests tqdm
 Run the script with Python:
 
 ```bash
-python kemono dl.py
+python "kemono dl.py"
 ```
 
 Follow the prompts:
