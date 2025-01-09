@@ -1,99 +1,132 @@
 ![image](https://kemono.su/static/kemono-logo.svg)
 
-
+```markdown
 # Bulk Media Downloader for Kemono.su
 
-Welcome to the Media Downloader for Kemono.su! This Python script allows you to fetch and download media files from various content platforms supported by the Kemono.su API. The script can handle multiple platforms and perform concurrent downloads to ensure efficiency.
+Welcome to the Bulk Media Downloader for Kemono.su! This Python script simplifies the process of fetching and downloading media files from various content platforms supported by the Kemono.su API. It offers efficient concurrent downloads and robust support for multiple platforms.
+
+---
 
 ## Features
 
-- **Fetch Artist Data**: Retrieves data from various platforms (Patreon, Fanbox, Pixiv, Discord, Fantia, Afdian, Boosty, Gumroad, Subscribestar) using the Kemono.su API.
-- **Concurrent Downloads**: Downloads media files concurrently using multiple threads to speed up the process.
-- **Progress Tracking**: Displays download progress for each file.
-- **Platform Support**: Handles multiple platforms with their respective API endpoints.
+- **Fetch Artist Data**: Access content from platforms like Patreon, Fanbox, Pixiv, Discord, Fantia, Afdian, Boosty, Gumroad, and Subscribestar through the Kemono.su API.
+- **Concurrent Downloads**: Utilize multiple threads to accelerate the downloading process.
+- **Progress Tracking**: Monitor download progress for each file with a clear interface.
+- **Error Handling**: Encounter issues? The script will display appropriate error messages for troubleshooting.
+
+---
 
 ## Supported Platforms
 
-- **Fanbox**
-- **Patreon**
-- **Pixiv**
-- **Discord**
-- **Fantia**
-- **Afdian**
-- **Boosty**
-- **Gumroad**
-- **Subscribestar**
+- Patreon
+- Fanbox
+- Pixiv
+- Discord
+- Fantia
+- Afdian
+- Boosty
+- Gumroad
+- Subscribestar
+
+---
 
 ## Requirements
 
-Ensure you have Python installed on your system. The script requires the following libraries:
+Ensure Python is installed on your system. This script depends on the following libraries:
 
-- `requests`: For making HTTP requests.
-- `tqdm`: For displaying download progress.
-- `concurrent.futures`: For handling concurrent downloads.
+- `requests`: For HTTP requests.
+- `tqdm`: To display progress bars.
+- `concurrent.futures`: For handling multithreaded downloads.
 
-You can install the required libraries using pip:
+Install these dependencies using pip:
 
 ```bash
 pip install requests tqdm
 ```
 
+---
+
 ## Installation
 
 1. **Clone the Repository**:
-    ```bash
-    git clone https://github.com/V1SIONUSE/Kemono.su-Downloader.git
-    cd yourrepository
-    ```
+
+   ```bash
+   git clone https://github.com/V1SIONUSE/Kemono.su-Downloader.git
+   cd Kemono.su-Downloader
+   ```
 
 2. **Install Dependencies**:
-    Install the necessary Python libraries if you haven't already:
-    ```bash
-    pip install requests tqdm
-    ```
+
+   ```bash
+   pip install requests tqdm
+   ```
+
+---
 
 ## Usage
 
-Run the script using Python:
+Run the script with Python:
 
 ```bash
 python media_downloader.py
 ```
 
-You will be prompted with the following steps:
+Follow the prompts:
 
-1. **Enter Artist Page URL**:
-   - Provide the URL of the artist's page from a supported platform. Example URLs:
-     - `https://kemono.su/patreon/user/2430075`
-     - `https://kemono.su/fanbox/user/23216574`
+1. **Provide Artist Page URL**:  
+   Enter the URL of the artist's page from a supported platform. Examples:
+   - `https://kemono.su/patreon/user/2430075`
+   - `https://kemono.su/fanbox/user/23216574`
 
-2. **Enter Download Directory**:
-   - Specify the directory where you want to save the downloaded files.
+2. **Specify Download Directory**:  
+   Define the folder where you want media files saved.
 
-The script will fetch the media files and download them to the specified directory.
+The script will handle fetching and downloading the media files concurrently.
 
-## Example
+---
 
-### Download Media
+## Example Run
+
+### Input
 
 ```plaintext
 Enter the artist page URL: https://kemono.su/patreon/user/2430075
 Enter the directory where you want to download the files: ./downloads
 ```
 
-The script will then proceed to download the media files concurrently and display progress for each file.
+### Output
+
+The script will:
+
+- Retrieve media data from the artist's page.
+- Download the files to the specified directory while displaying progress.
+
+---
 
 ## Notes
 
-- **File Size Detection**: The script uses HTTP headers to determine the file size for progress tracking.
-- **Thumbnails and Zip Files**: Thumbnails and zip files are skipped during the download process.
-- **Error Handling**: If an error occurs during fetching or downloading, appropriate messages are displayed.
+- **Thumbnails & Zip Files**: These file types are skipped to focus on relevant media.
+- **File Size**: HTTP headers are used to detect file sizes for accurate progress tracking.
+- **Platform Compatibility**: Ensure URLs belong to supported platforms.
+- **Error Handling**: Errors during fetching or downloading are clearly logged.
+
+---
 
 ## Troubleshooting
 
-- **Unsupported Platform**: Ensure that the provided URL corresponds to a supported platform.
-- **Download Issues**: Verify that the download directory is writable and has sufficient space.
+- **Platform Support**: Verify the artist page URL matches a supported platform.
+- **Directory Issues**: Ensure the target folder exists, is writable, and has enough space.
+
+---
 
 ## Contributing
 
-Feel free to fork this repository and submit pull requests. For major changes or feature requests, please open an issue to discuss.
+Contributions are welcome! Feel free to:
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Submit a pull request.
+
+For major features or changes, please open an issue first to discuss your ideas.
+
+---
