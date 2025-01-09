@@ -50,7 +50,7 @@ pip install requests tqdm
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/V1SIONUSE/Kemono.su-Downloader.git
+   git clone https://github.com/visiuun/Kemono.su-Downloader.git
    cd Kemono.su-Downloader
    ```
 
