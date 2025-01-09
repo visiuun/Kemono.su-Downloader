@@ -67,7 +67,7 @@ pip install requests tqdm
 Run the script with Python:
 
 ```bash
-python media_downloader.py
+python kemono dl.py
 ```
 
 Follow the prompts:
