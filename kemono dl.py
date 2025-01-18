@@ -139,7 +139,7 @@ def download_media_files(artist_data, download_dir, download_all):
     # Create a single total progress bar for all downloads (this is what you're asking for)
     with tqdm(total=total_files, desc="Downloading media", ncols=100) as progress_bar:
         # Create a ThreadPoolExecutor with 5 concurrent threads
-        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = []
             for post in artist_data:
                 if 'attachments' in post:
