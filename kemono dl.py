@@ -70,7 +70,7 @@ async def fetch_artist_data(artist_url):
         while True:
             api_url = f"https://kemono.su/api/v1/{platform}/user/{user_id}?o={offset}"
             headers = {'accept': 'application/json'}
-            
+
             async with session.get(api_url, headers=headers) as response:
                 if response.status == 200:
                     page_data = await response.json()
@@ -108,6 +108,13 @@ def download_file(file_url, file_name, download_dir, progress_bar):
     except KeyError:
         print(f"Failed to get file size for {file_name}")
         return
+
+    # Handle file name conflicts
+    base_name, ext = os.path.splitext(file_name)
+    counter = 1
+    while os.path.exists(os.path.join(download_dir, file_name)):
+        file_name = f"{base_name}_{counter}{ext}"
+        counter += 1
 
     with requests.get(file_url, stream=True) as r:
         r.raise_for_status()
