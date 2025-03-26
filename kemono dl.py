@@ -9,6 +9,7 @@ import concurrent.futures
 import importlib
 import sys
 import subprocess
+import re
 
 # List of required libraries
 required_libraries = ['requests', 'tqdm', 'concurrent.futures', 'aiohttp']
@@ -101,7 +102,33 @@ async def fetch_artist_data(artist_url):
                         break
     return artist_data
 
-def download_file(file_url, file_name, download_dir, progress_bar):
+async def fetch_artist_name(artist_url):
+    parsed_url = urllib.parse.urlparse(artist_url)
+    platform = parsed_url.path.split('/')[1]
+    user_id = parsed_url.path.split('/')[-1]
+    api_url = f"https://kemono.su/api/v1/{platform}/user/{user_id}/profile"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url) as response:
+                if response.status == 200:
+                    profile_data = await response.json()
+                    return profile_data.get('name')
+                else:
+                    print(f"Failed to fetch artist profile. Status code: {response.status}")
+                    return None
+    except aiohttp.ClientError as e:
+        print(f"Error fetching artist profile: {e}")
+        return None
+
+def sanitize_filename(filename):
+    """Sanitizes filename to remove or replace invalid characters."""
+    # Replace spaces with underscores
+    filename = filename.replace(" ", "_")
+    # Remove or replace special characters (keep alphanumeric, _, ., -)
+    filename = re.sub(r'[^\w\._-]', '', filename)
+    return filename
+
+def download_file(file_url, file_name, artist_name, download_dir, progress_bar):
     try:
         # Get file size for progress bar
         file_size = int(requests.head(file_url).headers.get("Content-Length", 0))
@@ -109,17 +136,30 @@ def download_file(file_url, file_name, download_dir, progress_bar):
         print(f"Failed to get file size for {file_name}")
         return
 
-    # Handle file name conflicts
     base_name, ext = os.path.splitext(file_name)
+    sanitized_base_name = sanitize_filename(base_name) # Sanitize original base filename
+
+    if artist_name:
+        artist_name_sanitized = sanitize_filename(artist_name)
+        new_file_name = f"[{artist_name_sanitized}] - {sanitized_base_name}{ext}" # New naming format
+    else:
+        new_file_name = f"{sanitized_base_name}{ext}" # Still sanitize if no artist name
+
+    # Handle file name conflicts
     counter = 1
-    while os.path.exists(os.path.join(download_dir, file_name)):
-        file_name = f"{base_name}_{counter}{ext}"
+    download_file_path = os.path.join(download_dir, new_file_name)
+    while os.path.exists(download_file_path):
+        if artist_name:
+            new_file_name = f"[{artist_name_sanitized}] - {sanitized_base_name}_{counter}{ext}"
+        else:
+            new_file_name = f"{sanitized_base_name}_{counter}{ext}"
+        download_file_path = os.path.join(download_dir, new_file_name)
         counter += 1
 
     with requests.get(file_url, stream=True) as r:
         r.raise_for_status()
-        with open(os.path.join(download_dir, file_name), 'wb') as f:
-            with tqdm(total=file_size, unit='B', unit_scale=True, desc=file_name, ncols=100, position=1, leave=False) as pbar:
+        with open(download_file_path, 'wb') as f:
+            with tqdm(total=file_size, unit='B', unit_scale=True, desc=new_file_name, ncols=100, position=1, leave=False) as pbar:
                 for chunk in r.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
@@ -129,7 +169,7 @@ def download_file(file_url, file_name, download_dir, progress_bar):
 def is_media_file(file_name, download_all):
     return download_all or any(file_name.lower().endswith(ext) for ext in media_file_extensions)
 
-def download_media_files(artist_data, download_dir, download_all):
+def download_media_files(artist_data, artist_name, download_dir, download_all):
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
 
@@ -158,7 +198,7 @@ def download_media_files(artist_data, download_dir, download_all):
                             file_url = f"https://kemono.su{file_url}"
                         # Skip thumbnails and zip files, unless downloading everything
                         if should_download_file(file_name, download_all):
-                            futures.append(executor.submit(download_file, file_url, file_name, download_dir, progress_bar))
+                            futures.append(executor.submit(download_file, file_url, file_name, artist_name, download_dir, progress_bar))
 
             # Wait for all futures (downloads) to complete
             for future in concurrent.futures.as_completed(futures):
@@ -177,7 +217,7 @@ def should_download_file(file_name, download_all):
 def main():
     artist_url = input("Enter the artist page URL: ").strip()
 
-    # Ask if the user wants to download everything or just media files
+    # Ask if the user wants to download everything or (2) just media files
     download_option = input("Do you want to download (1) everything or (2) just media files? (Enter 1 or 2): ").strip()
 
     # Validate download option input
@@ -187,6 +227,7 @@ def main():
 
     # Fetch artist data from respective platform API
     artist_data = asyncio.run(fetch_artist_data(artist_url))
+    artist_name = asyncio.run(fetch_artist_name(artist_url))
 
     if artist_data:
         # Prompt user to choose download directory
@@ -198,7 +239,7 @@ def main():
                 print("Invalid directory or no write permission. Please enter a valid directory.")
 
         # Download media files concurrently
-        download_media_files(artist_data, download_dir, download_option == '1')
+        download_media_files(artist_data, artist_name, download_dir, download_option == '1')
         print("Download completed!")
     else:
         print("Failed to fetch artist data. Please check the provided URL and try again.")
